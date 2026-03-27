@@ -19,7 +19,7 @@ import urllib.request
 import threading
 
 # Version
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 # Paths
 TASK_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,7 +31,7 @@ HISTORY_FILE = os.path.join(APPDATA_DIR, "history.json")
 OLD_SETTINGS = os.path.join(TASK_DIR, "settings.json")
 OLD_HISTORY = os.path.join(TASK_DIR, "history.json")
 
-DEFAULT_PATH = os.path.expanduser("~/Documents")
+DEFAULT_PATH = os.path.normpath(os.path.expanduser("~/Documents"))
 OLD_DEFAULT_PATH = r"\\BrokenClouds\BlackLodge\Media\Shows"
 
 def migrate_data():
@@ -384,7 +384,13 @@ class ThemeExtractor(QMainWindow):
         self.source_list.clear(); self.metadata_display.setText("Loading metadata..."); self.worker = LoadWorker(sp, self.settings); self.worker.finished.connect(self.on_load_finished); self.worker.error.connect(lambda e: self.status_bar.showMessage(f"Error: {e}")); self.worker.start()
 
     def on_load_finished(self, paths, html):
-        self.episode_paths = paths; [self.source_list.addItem(rel) for rel in sorted(paths.keys())]; self.metadata_display.setText(html); self.status_bar.showMessage("Ready", 3000)
+        self.episode_paths = paths
+        for name in sorted(paths.keys()):
+            self.source_list.addItem(name)
+        if self.source_list.count() > 0:
+            self.source_list.setCurrentRow(0)
+        self.metadata_display.setText(html)
+        self.status_bar.showMessage("Ready", 3000)
 
     def on_source_selected(self, it):
         self.reset_extract_button(); p = self.episode_paths.get(it.text())
