@@ -11,7 +11,7 @@ A professional-grade Windows desktop application to extract high-quality theme s
 - **💎 Single File**: Distributed as a standalone Windows EXE.
 
 ## Installation
-1. Download the latest `Theme Extractor.exe` from the [Releases](https://github.com/m-batchelor/ThemeExtractor/releases) page.
+1. Download the latest `Theme Extractor.exe` from the [Releases](https://github.com/mattsigal/ThemeExtractor/releases) page.
 2. (Optional) Place `ffmpeg.exe` and `ffprobe.exe` in the same folder as the app for a portable experience.
 3. Run the application.
 
