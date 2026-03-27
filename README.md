@@ -18,7 +18,7 @@ A Windows desktop application to extract high-quality theme songs from media fil
 1. Set Path: Click Settings to point to your Jellyfin TV or Movie library.
 2. Select Media: Choose a show/movie and a source file.
 3. Fine-tune: If a theme chapter is found, it will be auto-selected. Use Preview Segment to verify or use navigation buttons to adjust.
-4. Extract: Click Extract Theme. The app generates `theme.mp3` and `theme.json` in the item's folder.
+4. Extract: Click Extract Theme. The app generates `theme.mp3` and `theme.json` in the item's root folder to be picked up by Jellyfin.
 
 ## Build from Source
 ```bash
