@@ -14,15 +14,33 @@ from PySide6.QtCore import Qt, QUrl, QSize, QPoint, QRect, QThread, Signal, QObj
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QDesktopServices
+import shutil
+import urllib.request
+import threading
 
 # Version
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 # Paths
 TASK_DIR = os.path.dirname(os.path.abspath(__file__))
-SETTINGS_FILE = os.path.join(TASK_DIR, "settings.json")
+APPDATA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "ThemeExtractor")
+os.makedirs(APPDATA_DIR, exist_ok=True)
+
+SETTINGS_FILE = os.path.join(APPDATA_DIR, "settings.json")
+HISTORY_FILE = os.path.join(APPDATA_DIR, "history.json")
+OLD_SETTINGS = os.path.join(TASK_DIR, "settings.json")
+OLD_HISTORY = os.path.join(TASK_DIR, "history.json")
+
 DEFAULT_PATH = os.path.expanduser("~/Documents")
 OLD_DEFAULT_PATH = r"\\BrokenClouds\BlackLodge\Media\Shows"
+
+def migrate_data():
+    for old, new in [(OLD_SETTINGS, SETTINGS_FILE), (OLD_HISTORY, HISTORY_FILE)]:
+        if os.path.exists(old) and not os.path.exists(new):
+            try: shutil.move(old, new)
+            except: pass
+
+migrate_data()
 
 def resource_path(relative_path):
     try:
@@ -91,6 +109,42 @@ class LoadWorker(QThread):
             self.finished.emit(paths, html)
         except Exception as e: self.error.emit(str(e))
 
+class HistoryDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Extraction History"); self.resize(800, 500)
+        layout = QVBoxLayout(self)
+        from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["Date", "Show", "Source File"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        layout.addWidget(self.table)
+        self.load_history()
+
+    def load_history(self):
+        if not os.path.exists(HISTORY_FILE): return
+        try:
+            with open(HISTORY_FILE, 'r') as f: data = json.load(f)
+            self.table.setRowCount(len(data))
+            for i, entry in enumerate(reversed(data)):
+                self.table.setItem(i, 0, QTableWidgetItem(entry.get("date", "")))
+                self.table.setItem(i, 1, QTableWidgetItem(entry.get("show", "")))
+                self.table.setItem(i, 2, QTableWidgetItem(entry.get("file", "")))
+        except: pass
+
+class UpdateWorker(QThread):
+    finished = Signal(dict) # info
+    def run(self):
+        try:
+            req = urllib.request.Request("https://api.github.com/repos/mattsigal/ThemeExtractor/releases/latest", headers={"User-Agent": "ThemeExtractor-Updater"})
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read().decode())
+                lv = data.get("tag_name", "").replace("v", "")
+                if lv and lv > VERSION: self.finished.emit(data)
+        except: pass
+
 class SettingsDialog(QDialog):
     def __init__(self, settings, parent=None):
         super().__init__(parent)
@@ -152,6 +206,35 @@ class ThemeExtractor(QMainWindow):
         self.theme_player = QMediaPlayer(); self.theme_audio = QAudioOutput(); self.theme_player.setAudioOutput(self.theme_audio)
         self.setup_ui(); self.apply_styles(); self.load_items(self.settings["path"])
         if self.first_boot: self.open_settings()
+        self.update_worker = UpdateWorker(); self.update_worker.finished.connect(self.on_update_found); self.update_worker.start()
+
+    def on_update_found(self, data):
+        self.update_data = data
+        self.version_lbl.setText(f"v{VERSION} (Update Available: {data.get('tag_name')})  ")
+        self.version_lbl.setStyleSheet("font-size: 8pt; color: #ffca28; font-weight: bold; cursor: pointer;")
+        self.version_lbl.setToolTip("Click to download and install update")
+        self.version_lbl.mousePressEvent = lambda e: self.start_update()
+
+    def start_update(self):
+        assets = self.update_data.get("assets", [])
+        url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".exe")), None)
+        if not url: QDesktopServices.openUrl(QUrl(self.update_data.get("html_url"))); return
+        if QMessageBox.question(self, "Update Available", f"A new version ({self.update_data.get('tag_name')}) is available. Download and install now?") == QMessageBox.Yes:
+            self.version_lbl.setText("Downloading...  ")
+            threading.Thread(target=self.download_and_install, args=(url,), daemon=True).start()
+
+    def download_and_install(self, url):
+        try:
+            exe_path = sys.executable; new_exe = exe_path + ".new"
+            urllib.request.urlretrieve(url, new_exe)
+            batch = os.path.join(APPDATA_DIR, "update.ps1")
+            with open(batch, 'w') as f:
+                f.write(f"Start-Sleep -s 2; Move-Item -Path '{new_exe}' -Destination '{exe_path}' -Force; Start-Process '{exe_path}'")
+            subprocess.Popen(["powershell", "-ExecutionPolicy", "Bypass", "-File", batch], shell=True)
+            QApplication.quit()
+        except Exception as e:
+            def err(): QMessageBox.critical(self, "Update Error", f"Failed to download update: {e}")
+            from PySide6.QtCore import QMetaObject; QMetaObject.invokeMethod(self, "err", Qt.QueuedConnection)
 
     def load_settings(self):
         if os.path.exists(SETTINGS_FILE):
@@ -169,7 +252,10 @@ class ThemeExtractor(QMainWindow):
         dialog = SettingsDialog(self.settings, self)
         if dialog.exec():
             new_settings = dialog.get_settings(); self.save_settings(new_settings)
+            self.settings["path"] = os.path.normpath(self.settings["path"])
             self.path_display.setText(self.settings["path"]); self.load_items(self.settings["path"])
+
+    def open_history(self): HistoryDialog(self).exec()
 
     def setup_ui(self):
         central_widget = QWidget(); self.setCentralWidget(central_widget)
@@ -177,10 +263,12 @@ class ThemeExtractor(QMainWindow):
         header_widget = QWidget(); header_widget.setFixedHeight(80); header_v = QVBoxLayout(header_widget); header_v.setContentsMargins(0, 0, 0, 5)
         header_top = QHBoxLayout(); header_lbl = QLabel("Theme Extractor"); header_lbl.setObjectName("header")
         header_lbl.setFont(QFont("Segoe UI", 24, QFont.Bold)); header_top.addWidget(header_lbl); header_top.addStretch()
+        history_btn = QPushButton("📜 History"); history_btn.setFixedWidth(120); history_btn.clicked.connect(self.open_history)
+        header_top.addWidget(history_btn)
         settings_btn = QPushButton("⚙ Settings"); settings_btn.setFixedWidth(120); settings_btn.clicked.connect(self.open_settings)
         header_top.addWidget(settings_btn); header_v.addLayout(header_top)
         path_panel = QHBoxLayout(); path_panel.addWidget(QLabel("<b>Media Root:</b>"))
-        self.path_display = QPushButton(self.settings["path"])
+        self.path_display = QPushButton(os.path.normpath(self.settings["path"]))
         self.path_display.setObjectName("pathDisplay")
         self.path_display.setCursor(Qt.PointingHandCursor)
         self.path_display.clicked.connect(self.open_settings)
@@ -198,7 +286,7 @@ class ThemeExtractor(QMainWindow):
         self.video_widget = QVideoWidget(); self.media_player.setVideoOutput(self.video_widget)
         self.video_container = VideoContainer(self.video_widget); center_v.addWidget(self.video_container, 20)
         play_h = QHBoxLayout()
-        for t in ["<< 10s", "< 1s", "< .1s", "Play", "> .1s", "> 1s", ">> 10s"]:
+        for t in ["<<< 10s", "<< 1s", "< .1s", "Play", "> .1s", ">> 1s", ">>> 10s"]:
             btn = QPushButton(t); btn.clicked.connect(lambda checked=False, tag=t: self.on_nav_btn_clicked(tag))
             if t == "Play": self.btn_play = btn
             play_h.addWidget(btn)
@@ -223,6 +311,7 @@ class ThemeExtractor(QMainWindow):
         self.version_lbl = QLabel(f"v{VERSION}  ")
         self.version_lbl.setStyleSheet("font-size: 8pt; color: #666;")
         self.status_bar.addPermanentWidget(self.version_lbl)
+        self.status_bar.setStyleSheet("QStatusBar::item { border: none; }")
 
     def apply_styles(self):
         self.setStyleSheet("""
@@ -243,6 +332,8 @@ class ThemeExtractor(QMainWindow):
             QSplitter::handle { background-color: #1a1a1b; width: 6px; }
             QFrame#statusFrame { background-color: #252526; border: 1px solid #3e3e42; border-radius: 4px; padding: 8px; min-height: 120px; }
             QHeaderView::section { background-color: #333333; color: #cccccc; padding: 4px; border: 1px solid #222222; }
+            QTableWidget { background-color: #252526; color: #d4d4d4; gridline-color: #3e3e42; }
+            QTableWidget QHeaderView::section { background-color: #333333; color: #cccccc; }
         """)
 
     def load_items(self, path):
@@ -274,13 +365,13 @@ class ThemeExtractor(QMainWindow):
 
     def on_nav_btn_clicked(self, tag):
         if not self.source_list.currentItem(): QMessageBox.warning(self, "No Source Selected", "Please select a file first."); return
-        if tag == "<< 10s": self.skip(-10000)
-        elif tag == "< 1s": self.skip(-1000)
+        if tag == "<<< 10s": self.skip(-10000)
+        elif tag == "<< 1s": self.skip(-1000)
         elif tag == "< .1s": self.skip(-100)
         elif tag == "Play": self.toggle_play()
         elif tag == "> .1s": self.skip(100)
-        elif tag == "> 1s": self.skip(1000)
-        elif tag == ">> 10s": self.skip(10000)
+        elif tag == ">> 1s": self.skip(1000)
+        elif tag == ">>> 10s": self.skip(10000)
 
     def on_mark_clicked(self, type):
         if not self.source_list.currentItem(): QMessageBox.warning(self, "No Source Selected", "Please select a file first."); return
@@ -340,9 +431,21 @@ class ThemeExtractor(QMainWindow):
             if quiet_subprocess([fc, '-y', '-ss', st, '-to', en, '-i', ep, '-af', 'loudnorm=I=-14:LRA=11:tp=-1', '-ab', br, '-ar', '44100', '-vn', om]).returncode != 0: raise Exception("FFmpeg failed")
             meta = {"YouTubeId": None, "YouTubeUrl": None, "Title": f"{it.text(0)} Theme", "Uploader": "Local Extractor", "DateAdded": datetime.now().isoformat()+"Z", "DateModified": datetime.now().isoformat()+"Z", "IsUserUploaded": True, "OriginalFileName": et.text()}
             with open(oj,'w') as f: json.dump(meta, f, indent=4)
+            self.update_history(it.text(0), et.text())
             self.status_bar.showMessage("Extraction complete!", 5000); self.on_item_selected(it, 0); self.extract_btn.setText("Theme Extracted!"); self.extract_btn.setStyleSheet("background-color: #28a745; color: white;"); self.load_items(self.settings["path"])
         except Exception as e: QMessageBox.critical(self, "Error", str(e)); self.reset_extract_button()
         finally: self.extract_btn.setEnabled(True)
+
+    def update_history(self, show_name, file_name):
+        history = []
+        if os.path.exists(HISTORY_FILE):
+            try:
+                with open(HISTORY_FILE, 'r') as f: history = json.load(f)
+            except: pass
+        history.append({"date": datetime.now().strftime("%Y-%m-%d %H:%M"), "show": show_name, "file": file_name})
+        try:
+            with open(HISTORY_FILE, 'w') as f: json.dump(history, f, indent=4)
+        except: pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv); window = ThemeExtractor(); window.show(); sys.exit(app.exec())
