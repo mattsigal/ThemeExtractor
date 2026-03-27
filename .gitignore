@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# PyInstaller / Build
+build/
+dist/
+*.spec
+
+# Application
+settings.json
+theme.mp3
+theme.json
+
+# Tooling / Logs
+*.log
+task.md
+implementation_plan.md
+walkthrough.md
+.gemini/
+.idea/
+.vscode/
