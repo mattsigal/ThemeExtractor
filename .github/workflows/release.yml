@@ -28,7 +28,7 @@ jobs:
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile --windowed --icon=icon.ico --add-data "icon.ico;." --name="Theme Extractor" ThemeExtractor.py
+          pyinstaller --onefile --windowed --icon=icon.ico --add-data "icon.ico;." --name="ThemeExtractor" ThemeExtractor.py
 
       - name: Create Release
         id: create_release

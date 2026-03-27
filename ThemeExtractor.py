@@ -15,10 +15,14 @@ from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QDesktopServices
 
+# Version
+VERSION = "1.0.1"
+
 # Paths
 TASK_DIR = os.path.dirname(os.path.abspath(__file__))
 SETTINGS_FILE = os.path.join(TASK_DIR, "settings.json")
-DEFAULT_PATH = r"\\BrokenClouds\BlackLodge\Media\Shows"
+DEFAULT_PATH = os.path.expanduser("~/Documents")
+OLD_DEFAULT_PATH = r"\\BrokenClouds\BlackLodge\Media\Shows"
 
 def resource_path(relative_path):
     try:
@@ -136,14 +140,18 @@ class ThemeExtractor(QMainWindow):
         super().__init__()
         try: ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('antigravity.themeextractor.v1')
         except: pass
-        self.setWindowTitle("Theme Extractor"); self.resize(1550, 950)
+        self.setWindowTitle(f"Theme Extractor v{VERSION}"); self.resize(1550, 950)
         icon_path = resource_path("icon.ico")
         if os.path.exists(icon_path): self.setWindowIcon(QIcon(icon_path))
-        self.settings = {"path": DEFAULT_PATH, "bitrate": 192, "ffmpeg_path": "ffmpeg"}; self.load_settings()
+        self.settings = {"path": DEFAULT_PATH, "bitrate": 192, "ffmpeg_path": "ffmpeg"}
+        self.first_boot = not os.path.exists(SETTINGS_FILE)
+        self.load_settings()
+        if self.settings.get("path") == OLD_DEFAULT_PATH: self.first_boot = True
         self.episode_paths = {}; self.current_preview_path = None
         self.media_player = QMediaPlayer(); self.audio_output = QAudioOutput(); self.media_player.setAudioOutput(self.audio_output)
         self.theme_player = QMediaPlayer(); self.theme_audio = QAudioOutput(); self.theme_player.setAudioOutput(self.theme_audio)
         self.setup_ui(); self.apply_styles(); self.load_items(self.settings["path"])
+        if self.first_boot: self.open_settings()
 
     def load_settings(self):
         if os.path.exists(SETTINGS_FILE):
@@ -172,7 +180,10 @@ class ThemeExtractor(QMainWindow):
         settings_btn = QPushButton("⚙ Settings"); settings_btn.setFixedWidth(120); settings_btn.clicked.connect(self.open_settings)
         header_top.addWidget(settings_btn); header_v.addLayout(header_top)
         path_panel = QHBoxLayout(); path_panel.addWidget(QLabel("<b>Media Root:</b>"))
-        self.path_display = QLabel(self.settings["path"]); self.path_display.setStyleSheet("color: #888; font-family: Consolas; background: #222; padding: 2px 5px;")
+        self.path_display = QPushButton(self.settings["path"])
+        self.path_display.setObjectName("pathDisplay")
+        self.path_display.setCursor(Qt.PointingHandCursor)
+        self.path_display.clicked.connect(self.open_settings)
         path_panel.addWidget(self.path_display, 1); header_v.addLayout(path_panel); main_layout.addWidget(header_widget)
         self.splitter = QSplitter(Qt.Horizontal)
         left_panel = QWidget(); left_panel.setMinimumWidth(600); left_v = QVBoxLayout(left_panel); left_v.setContentsMargins(0, 5, 10, 0)
@@ -187,7 +198,7 @@ class ThemeExtractor(QMainWindow):
         self.video_widget = QVideoWidget(); self.media_player.setVideoOutput(self.video_widget)
         self.video_container = VideoContainer(self.video_widget); center_v.addWidget(self.video_container, 20)
         play_h = QHBoxLayout()
-        for t in ["<< 10s", "< 1s", "Play", "> 1s", ">> 10s"]:
+        for t in ["<< 10s", "< 1s", "< .1s", "Play", "> .1s", "> 1s", ">> 10s"]:
             btn = QPushButton(t); btn.clicked.connect(lambda checked=False, tag=t: self.on_nav_btn_clicked(tag))
             if t == "Play": self.btn_play = btn
             play_h.addWidget(btn)
@@ -207,7 +218,11 @@ class ThemeExtractor(QMainWindow):
 
         ext_h = QHBoxLayout(); self.extract_btn = QPushButton("Extract Theme"); self.extract_btn.clicked.connect(self.extract_theme); self.extract_btn.setEnabled(False); self.extract_btn.setFixedHeight(50); ext_h.addWidget(self.extract_btn, 1); center_v.addLayout(ext_h)
         meta_f = QFrame(); meta_f.setObjectName("statusFrame"); meta_v = QVBoxLayout(meta_f); self.metadata_display = QLabel("No item selected"); self.metadata_display.setWordWrap(True); self.metadata_display.setOpenExternalLinks(True)
-        meta_v.addWidget(self.metadata_display); center_v.addWidget(meta_f); self.splitter.addWidget(center_panel); self.splitter.setStretchFactor(1, 1); main_layout.addWidget(self.splitter, 1); self.status_bar = QStatusBar(); self.setStatusBar(self.status_bar)
+        meta_v.addWidget(self.metadata_display); center_v.addWidget(meta_f); self.splitter.addWidget(center_panel); self.splitter.setStretchFactor(1, 1); main_layout.addWidget(self.splitter, 1)
+        self.status_bar = QStatusBar(); self.setStatusBar(self.status_bar)
+        self.version_lbl = QLabel(f"v{VERSION}  ")
+        self.version_lbl.setStyleSheet("font-size: 8pt; color: #666;")
+        self.status_bar.addPermanentWidget(self.version_lbl)
 
     def apply_styles(self):
         self.setStyleSheet("""
@@ -219,6 +234,8 @@ class ThemeExtractor(QMainWindow):
             QTreeWidget::item:selected, QListWidget::item:selected { background-color: #37373d; }
             QLineEdit { background-color: #2d2d2d; color: #ffffff; border: 1px solid #3e3e42; border-radius: 4px; padding: 5px; }
             QPushButton { background-color: #333333; color: #aaaaaa; border: 1px solid #555555; border-radius: 4px; padding: 6px 12px; }
+            QPushButton#pathDisplay { color: #888; font-family: Consolas; background: #222; border: 1px solid #333; text-align: left; padding: 2px 5px; }
+            QPushButton#pathDisplay:hover { background: #333; color: #ccc; border: 1px solid #444; }
             QPushButton:hover { background-color: #444444; color: #ffffff; border: 1px solid #777777; }
             QPushButton:pressed { background-color: #CC0633; color: white; }
             QPushButton:disabled { color: #444444; border: 1px solid #333333; }
@@ -259,7 +276,9 @@ class ThemeExtractor(QMainWindow):
         if not self.source_list.currentItem(): QMessageBox.warning(self, "No Source Selected", "Please select a file first."); return
         if tag == "<< 10s": self.skip(-10000)
         elif tag == "< 1s": self.skip(-1000)
+        elif tag == "< .1s": self.skip(-100)
         elif tag == "Play": self.toggle_play()
+        elif tag == "> .1s": self.skip(100)
         elif tag == "> 1s": self.skip(1000)
         elif tag == ">> 10s": self.skip(10000)
 
