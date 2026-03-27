@@ -3,11 +3,11 @@
 A Windows desktop application to extract high-quality theme songs from media files (TV shows and movies) compatible with the Jellyfin `xThemeSong` plugin and Jellyfin libraries.
 
 ## Features
-- ** Advanced Extraction**: EBU R128 (-14 LUFS) normalization, customizable bitrates, and silent processing.
-- ** Smoooth Performance**: Background workers for non-blocking network scans and metadata lookups.
-- ** Auto-Detection**: Scans media files for "Intro", "Opening", "Theme", or "OP" chapters and auto-seeds trim points.
-- ** Zero Config**: Automatically discovers FFmpeg/FFprobe in its own directory.
-- ** Single File**: Distributed as a standalone Windows EXE.
+-  Advanced Extraction: EBU R128 (-14 LUFS) normalization, customizable bitrates, and silent processing.
+-  Smoooth Performance: Background workers for non-blocking network scans and metadata lookups.
+-  Auto-Detection: Scans media files for "Intro", "Opening", "Theme", or "OP" chapters and auto-seeds trim points.
+-  Zero Config: Automatically discovers FFmpeg/FFprobe in its own directory.
+-  Single File: Distributed as a standalone Windows EXE.
 
 ## Installation
 1. Download the latest `Theme Extractor.exe` from the [Releases](https://github.com/mattsigal/ThemeExtractor/releases) page.
@@ -15,10 +15,10 @@ A Windows desktop application to extract high-quality theme songs from media fil
 3. Run the application.
 
 ## Usage
-1. **Set Path**: Click **Settings** to point to your Jellyfin TV or Movie library.
-2. **Select Media**: Choose a show/movie and a source file.
-3. **Fine-tune**: If a theme chapter is found, it will be auto-selected. Use **Preview Segment** to verify or use navigation buttons to adjust.
-4. **Extract**: Click **Extract Theme**. The app generates `theme.mp3` and `theme.json` in the item's folder.
+1. Set Path: Click Settings to point to your Jellyfin TV or Movie library.
+2. Select Media: Choose a show/movie and a source file.
+3. Fine-tune: If a theme chapter is found, it will be auto-selected. Use Preview Segment to verify or use navigation buttons to adjust.
+4. Extract: Click Extract Theme. The app generates `theme.mp3` and `theme.json` in the item's folder.
 
 ## Build from Source
 ```bash
