@@ -1,6 +1,6 @@
 # Theme Extractor 🎵🎬
 
-A professional-grade Windows desktop application to extract high-quality theme songs from media files (TV shows and movies) for use with the Jellyfin `xThemeSong` plugin.
+A Windows desktop application to extract high-quality theme songs from media files (TV shows and movies) compatable with the Jellyfin `xThemeSong` plugin and Jellyfin libraries.
 
 ## Features
 - **🎨 Visual Identity**: Modern dark mode UI with 16:9 aspect ratio preservation.
