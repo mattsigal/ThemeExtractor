@@ -19,7 +19,7 @@ import urllib.request
 import threading
 
 # Version
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 # Paths
 TASK_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -229,7 +229,7 @@ class ThemeExtractor(QMainWindow):
             urllib.request.urlretrieve(url, new_exe)
             batch = os.path.join(APPDATA_DIR, "update.ps1")
             with open(batch, 'w') as f:
-                f.write(f"Start-Sleep -s 2; Move-Item -Path '{new_exe}' -Destination '{exe_path}' -Force; Start-Process '{exe_path}'")
+                f.write(f"$old = '{exe_path}'; $new = '{new_exe}'; $timeout = 20; $elapsed = 0; $success = $false; while ($elapsed -lt $timeout) {{ try {{ Move-Item -Path $new -Destination $old -Force -ErrorAction Stop; $success = $true; break }} catch {{ Start-Sleep -Seconds 1; $elapsed++ }} }}; if ($success) {{ Start-Process $old }}")
             subprocess.Popen(["powershell", "-ExecutionPolicy", "Bypass", "-File", batch], shell=True)
             QApplication.quit()
         except Exception as e:
