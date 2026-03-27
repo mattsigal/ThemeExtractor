@@ -1,14 +1,13 @@
-# Theme Extractor 🎵🎬
+# Theme Extractor 
 
-A Windows desktop application to extract high-quality theme songs from media files (TV shows and movies) compatable with the Jellyfin `xThemeSong` plugin and Jellyfin libraries.
+A Windows desktop application to extract high-quality theme songs from media files (TV shows and movies) compatible with the Jellyfin `xThemeSong` plugin and Jellyfin libraries.
 
 ## Features
-- **🎨 Visual Identity**: Modern dark mode UI with 16:9 aspect ratio preservation.
-- **⚙️ Advanced Extraction**: EBU R128 (-14 LUFS) normalization, customizable bitrates, and silent processing.
-- **🚀 Smoooth Performance**: Background workers for non-blocking network scans and metadata lookups.
-- **🔍 Auto-Detection**: Scans media files for "Intro", "Opening", "Theme", or "OP" chapters and auto-seeds trim points.
-- **📦 Zero Config**: Automatically discovers FFmpeg/FFprobe in its own directory.
-- **💎 Single File**: Distributed as a standalone Windows EXE.
+- ** Advanced Extraction**: EBU R128 (-14 LUFS) normalization, customizable bitrates, and silent processing.
+- ** Smoooth Performance**: Background workers for non-blocking network scans and metadata lookups.
+- ** Auto-Detection**: Scans media files for "Intro", "Opening", "Theme", or "OP" chapters and auto-seeds trim points.
+- ** Zero Config**: Automatically discovers FFmpeg/FFprobe in its own directory.
+- ** Single File**: Distributed as a standalone Windows EXE.
 
 ## Installation
 1. Download the latest `Theme Extractor.exe` from the [Releases](https://github.com/mattsigal/ThemeExtractor/releases) page.
